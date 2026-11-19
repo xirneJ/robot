@@ -149,6 +149,9 @@ function createLeg(parent, layout, materials) {
   yawJoint.scale.y = .78;
   hipYaw.add(yawJoint);
 
+  const hipMarker = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), materials.amber);
+  hipMarker.position.set(.02, .17, 0);
+  hipYaw.add(hipMarker);
   const coxa = linkMesh(.135, METRICS.l1, materials.dark);
   hipYaw.add(coxa);
   const coxaArmor = linkMesh(.172, METRICS.l1 * .73, materials.shellAlt);
@@ -269,6 +272,36 @@ export function createHexapod() {
   const frontDark = box(1.34, .12, .12, materials.black, 0, -.13, -1.36);
   body.add(frontDark);
 
+  const sensorModule = new THREE.Group();
+  sensorModule.position.set(0, .5, -.12);
+  const moduleBase = box(.72, .16, .72, materials.dark, 0, 0, 0);
+  sensorModule.add(moduleBase);
+  const moduleShell = box(.58, .09, .58, materials.shellAlt, 0, .105, 0);
+  sensorModule.add(moduleShell);
+  const lidarBase = new THREE.Mesh(new THREE.CylinderGeometry(.18, .21, .08, 20), materials.dark);
+  lidarBase.position.y = .2; sensorModule.add(lidarBase);
+  const lidarDome = new THREE.Mesh(new THREE.CylinderGeometry(.13, .155, .15, 20), materials.glass);
+  lidarDome.position.y = .3; sensorModule.add(lidarDome);
+  const lidarRing = new THREE.Mesh(new THREE.TorusGeometry(.15, .018, 6, 22), materials.cyan);
+  lidarRing.rotation.x = Math.PI / 2; lidarRing.position.y = .235; sensorModule.add(lidarRing);
+  body.add(sensorModule);
+
+  for (const side of [-1, 1]) {
+    const guard = new THREE.Group();
+    const postA = box(.08, .36, .08, materials.dark, side * .58, .5, -.45);
+    const postB = box(.08, .36, .08, materials.dark, side * .58, .5, .46);
+    const rail = box(.08, .075, .96, materials.shellAlt, side * .58, .69, 0);
+    guard.add(postA, postB, rail);
+    body.add(guard);
+  }
+
+  const rearModule = box(.92, .24, .34, materials.shellAlt, 0, .17, .93);
+  rearModule.rotation.x = -.12;
+  body.add(rearModule);
+  const rearGrille = box(.58, .13, .035, materials.dark, 0, .19, 1.11);
+  body.add(rearGrille);
+  for (let i = 0; i < 7; i++) body.add(box(.035, .105, .045, materials.steel, -.24 + i * .08, .19, 1.135));
+
   const seamMat = new THREE.MeshStandardMaterial({ color: 0x4b5354, metalness: .65, roughness: .32 });
   body.add(box(.035, .025, 1.36, seamMat, -.34, .435, .06));
   body.add(box(.035, .025, 1.36, seamMat, .34, .435, .06));
@@ -340,13 +373,13 @@ export function createHexapod() {
   headLight.target = headTarget;
 
   const antenna = new THREE.Group();
-  antenna.position.set(.38, .45, .65);
+  antenna.position.set(.38, .36, .65);
   body.add(antenna);
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.018, .025, .9, 8), materials.dark);
-  mast.position.y = .45;
+  const mast = new THREE.Mesh(new THREE.CylinderGeometry(.018, .025, .48, 8), materials.dark);
+  mast.position.y = .24;
   antenna.add(mast);
   const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(.045, 8, 6), materials.red);
-  antennaTip.position.y = .92;
+  antennaTip.position.y = .5;
   antenna.add(antennaTip);
 
   const warning = new THREE.Mesh(new THREE.SphereGeometry(.065, 10, 8), materials.amber);

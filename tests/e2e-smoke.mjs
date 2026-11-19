@@ -61,6 +61,20 @@ try {
   assert.equal((await page.evaluate(() => window.__ISR__.state())).gait, 'wave');
 
   await page.evaluate(() => window.__ISR__.teleportToZone(0));
+  const thermal = await page.evaluate(() => {
+    const state = window.__ISR__.simulate(4.2, { brake: true });
+    window.__ISR__.toggleRadar(true);
+    return {
+      state,
+      contacts: window.__ISR__.mission.state.contacts,
+      radarVisible: !document.querySelector('#radar-page').hidden
+    };
+  });
+  assert.ok(thermal.state.thermal > 34.5, 'thermal sensor should reach human temperature threshold');
+  assert.ok(thermal.contacts.length >= 1, 'radar should show a detected human contact');
+  assert.equal(thermal.radarVisible, true);
+  await page.evaluate(() => window.__ISR__.toggleRadar(false));
+
   const scanned = await page.evaluate(() => {
     window.__ISR__.simulate(4.5, { scan: true });
     return {
@@ -88,6 +102,41 @@ try {
   });
   assert.ok(collision.position[2] > 27.8, 'robot should stop before penetrating a car');
 
+  const tightSpace = await page.evaluate(() => {
+    let robotHeight = -Infinity;
+    window.__ISR__.robot.root.updateWorldMatrix(true, true);
+    window.__ISR__.robot.root.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry?.attributes?.position) return;
+      const attr = obj.geometry.attributes.position;
+      const v = obj.position.clone();
+      for (let i = 0; i < attr.count; i++) {
+        v.fromBufferAttribute(attr, i).applyMatrix4(obj.matrixWorld);
+        robotHeight = Math.max(robotHeight, v.y);
+      }
+    });
+    return {
+      robotCanEnter: window.__ISR__.world.canMove(3.5, -22, .62),
+      clearance: window.__ISR__.world.tightSpaces[0].clearance,
+      robotHeight,
+      cameraOccluders: window.__ISR__.world.cameraColliders.length
+    };
+  });
+  assert.equal(tightSpace.robotCanEnter, true);
+  assert.ok(tightSpace.clearance >= .5);
+  assert.ok(tightSpace.robotHeight < tightSpace.clearance, 'robot must physically fit under the collapsed slab');
+  assert.ok(tightSpace.cameraOccluders > 20);
+
+  const automatic = await page.evaluate(() => {
+    window.__ISR__.restart();
+    window.__ISR__.toggleAuto(true);
+    const state = window.__ISR__.simulate(18, {});
+    return { state, target: window.__ISR__.autopilot.state.targetZone?.id || null };
+  });
+  assert.equal(automatic.state.auto, true);
+  assert.ok(Math.abs(automatic.state.position[2] - 29) > 2, 'autopilot should drive toward the search area');
+  assert.equal(automatic.target, 'A');
+
+  await page.evaluate(() => window.__ISR__.toggleAuto(false));
   await page.screenshot({ path: 'isr-preview.png', fullPage: false });
   assert.deepEqual(pageErrors, []);
   assert.deepEqual(consoleErrors, []);
@@ -99,6 +148,10 @@ try {
     uploaded: uploaded.uploading,
     collisionStopZ: +collision.position[2].toFixed(2),
     minFootHeight: +Math.min(...footHeights).toFixed(3),
+    thermal: +thermal.state.thermal.toFixed(1),
+    radarContacts: thermal.contacts.length,
+    autoTarget: automatic.target,
+    tightSpace,
     pageErrors,
     consoleErrors
   }, null, 2));

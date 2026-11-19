@@ -3,7 +3,7 @@ import { clamp } from './core.js';
 
 const ZONE_DATA = [
   { id: 'A', label: '商铺夹道', x: -8.2, z: 12.5, radius: 3.0, intensity: .82 },
-  { id: 'B', label: '高架桥下', x: 3.5, z: -22, radius: 3.3, intensity: .9 },
+  { id: 'B', label: '高架夹层', x: 3.5, z: -22, radius: 3.3, intensity: .9 },
   { id: 'C', label: '积水中庭', x: 10.4, z: -40, radius: 3.1, intensity: .76 }
 ];
 
@@ -385,6 +385,43 @@ function createRubbleMound(scene, x, z, scale, random, color = 0x303635) {
   return group;
 }
 
+function createVictim(parent, index) {
+  const group = new THREE.Group();
+  const jacket = new THREE.MeshStandardMaterial({ color: index === 1 ? 0x48545a : 0x5b3e35, roughness: .92 });
+  const pants = new THREE.MeshStandardMaterial({ color: 0x1a2328, roughness: .96 });
+  const skin = new THREE.MeshStandardMaterial({ color: 0x9a7562, roughness: .78 });
+  const boot = new THREE.MeshStandardMaterial({ color: 0x111516, roughness: .8 });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(.23, .58, 5, 10), jacket);
+  torso.rotation.z = index === 1 ? -.5 : .34;
+  torso.position.y = .69;
+  group.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(.18, 12, 8), skin);
+  head.position.set(index === 1 ? .31 : -.22, 1.17, .02);
+  group.add(head);
+  for (const side of [-1, 1]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(.065, .055, .55, 7), jacket);
+    arm.position.set(side * .25 + (index === 1 ? .18 : -.12), .68, .1);
+    arm.rotation.z = side * .78 + (index === 1 ? -.35 : .2);
+    group.add(arm);
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(.075, .06, .62, 7), pants);
+    leg.position.set(side * .12, .28, side * .06);
+    leg.rotation.z = side * .22;
+    group.add(leg);
+    const shoe = new THREE.Mesh(new THREE.BoxGeometry(.16, .11, .28), boot);
+    shoe.position.set(side * .17, .03, -.08);
+    group.add(shoe);
+  }
+  const dust = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.4, 1.1),
+    new THREE.MeshBasicMaterial({ color: 0x2d302d, transparent: true, opacity: .58, side: THREE.DoubleSide, depthWrite: false })
+  );
+  dust.rotation.x = 0; dust.position.set(.1, .015, .2); group.add(dust);
+  group.rotation.x = Math.PI / 2;
+  group.rotation.y = index * 1.1;
+  parent.add(group);
+  return group;
+}
+
 function createSearchZone(scene, data, index, glowTex) {
   const group = new THREE.Group();
   group.position.set(data.x, 0, data.z);
@@ -396,22 +433,28 @@ function createSearchZone(scene, data, index, glowTex) {
   const core = new THREE.Group();
   core.position.set((index === 1 ? -2.3 : 1.4), .1, (index === 0 ? -1.8 : 1.2));
   const heat = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xff6b36, transparent: true, opacity: .22, blending: THREE.AdditiveBlending, depthWrite: false }));
-  heat.scale.set(2.8, 2.8, 1); core.add(heat);
-  const signal = new THREE.PointLight(0xff5e37, 6.5, 4.8, 2);
+  heat.scale.set(2.8, 2.8, 1); heat.visible = false; core.add(heat);
+  const signal = new THREE.PointLight(0xff5e37, 0, 4.8, 2);
   signal.position.y = .55; core.add(signal);
-  const marker = new THREE.Mesh(new THREE.OctahedronGeometry(.28, 0), new THREE.MeshBasicMaterial({ color: 0xf4ad52, transparent: true, opacity: .35 }));
-  marker.position.y = 1.2; core.add(marker);
+  const marker = new THREE.Mesh(new THREE.OctahedronGeometry(.28, 0), new THREE.MeshBasicMaterial({ color: 0xf4ad52, transparent: true, opacity: .18 }));
+  marker.position.y = 1.2; marker.visible = false; core.add(marker);
+  const victim = createVictim(core, index);
+  victim.position.set(0, 0, 0);
   group.add(core);
   scene.add(group);
+  const victimWorld = new THREE.Vector3(data.x + core.position.x, 0, data.z + core.position.z);
+  const ambientTemp = 18.4 + index * .55;
   return {
-    ...data, index, group, ring, inner, core, heat, signal, marker,
+    ...data, index, group, ring, inner, core, heat, signal, marker, victim, victimWorld,
+    ambientTemp, bodyTemp: 36.6 + index * .2, heatReading: ambientTemp, contactVisible: false,
     position: new THREE.Vector3(data.x, 0, data.z),
-    evidence: { heat: 0, presence: 0, audio: 0, confidence: 0, confirmed: false, uploaded: false }
+    evidence: { heat: 0, presence: 0, audio: 0, confidence: 0, confirmed: false, uploaded: false, thermalDetected: false }
   };
 }
 
 export function createCityWorld(scene, renderer) {
   const colliders = [];
+  const cameraColliders = [];
   const zones = [];
   const sceneLights = [];
   scene.background = new THREE.Color(0x0b1216);
@@ -551,6 +594,31 @@ export function createCityWorld(scene, renderer) {
   elevated.position.set(0, 8.1, -22);
   scene.add(elevated);
 
+  const tunnelMat = new THREE.MeshStandardMaterial({ color: 0x39403f, roughness: .86, metalness: .08 });
+  const lowTunnel = new THREE.Group();
+  const ceilingA = boxMesh(6.4, .34, 10.6, tunnelMat, 3.45, .76, -20.6);
+  ceilingA.rotation.x = .025; ceilingA.rotation.y = -.035; lowTunnel.add(ceilingA);
+  const ceilingB = boxMesh(3.2, .22, 3.6, tunnelMat, 5.8, .56, -14.9);
+  ceilingB.rotation.z = .08; lowTunnel.add(ceilingB);
+  const brokenEdge = boxMesh(2.1, .28, 1.1, tunnelMat, 1.1, .77, -25.5);
+  brokenEdge.rotation.set(.16, .25, -.08); lowTunnel.add(brokenEdge);
+  for (let i = 0; i < 12; i++) {
+    const rebar = new THREE.Mesh(new THREE.CylinderGeometry(.025, .025, 1.3 + Math.random() * 1.7, 5), new THREE.MeshStandardMaterial({ color: 0x5e4b39, metalness: .55, roughness: .7 }));
+    rebar.position.set(.5 + Math.random() * 5.8, .52 + Math.random() * .2, -25 + Math.random() * 10);
+    rebar.rotation.set((Math.random() - .5) * 1.4, 0, (Math.random() - .5) * 1.2);
+    lowTunnel.add(rebar);
+  }
+  scene.add(lowTunnel);
+  cameraColliders.push({ minX: .25, maxX: 6.65, minZ: -25.9, maxZ: -15.3, minY: .53, maxY: .98, height: .98 });
+
+  const warning = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.7, .68),
+    new THREE.MeshBasicMaterial({ map: signTexture('低矮空间 · 仅机器人可入', '#f3b158'), transparent: true, opacity: .9, side: THREE.DoubleSide, toneMapped: false })
+  );
+  warning.position.set(3.5, 1.35, -14.4);
+  warning.rotation.y = 0;
+  scene.add(warning);
+
   createCar(scene, colliders, -5.5, 25, .11);
   createCar(scene, colliders, 7.2, 9.5, -.16, true);
   createCar(scene, colliders, -1.2, -4, .04);
@@ -564,6 +632,29 @@ export function createCityWorld(scene, renderer) {
     createRubbleMound(scene, x, z, s, rng, opacity > .7 ? 0x283031 : 0x343b3a);
     if (s > 2.7) addCollider(colliders, x, z, s * 1.25, s * 1.15, .15, s * .85);
   });
+  [[-6, 18, 1.9], [11, 5, 1.6], [-12, -7, 2.0], [8.5, -18, 1.8], [-5, -34, 2.1], [12, -43, 2.2]].forEach(([x, z, scale]) => createRubbleMound(scene, x, z, scale, rng, 0x313735));
+
+  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x414846, roughness: .94, metalness: .03 });
+  const debris = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(.24, 0), debrisMat, 180);
+  const debrisMatrix = new THREE.Matrix4();
+  const debrisQuat = new THREE.Quaternion();
+  for (let i = 0; i < 180; i++) {
+    const x = (rng() - .5) * 28;
+    const z = 32 - rng() * 78;
+    const scale = .35 + rng() * 1.8;
+    debrisQuat.setFromEuler(new THREE.Euler(rng() * 3, rng() * 3, rng() * 3));
+    debrisMatrix.compose(new THREE.Vector3(x, .06 + rng() * .17, z), debrisQuat, new THREE.Vector3(scale, scale * (.4 + rng() * .5), scale));
+    debris.setMatrixAt(i, debrisMatrix);
+  }
+  debris.instanceMatrix.needsUpdate = true;
+  debris.castShadow = false; debris.receiveShadow = true; scene.add(debris);
+
+  const furnitureMat = new THREE.MeshStandardMaterial({ color: 0x45372e, roughness: .9 });
+  for (let i = 0; i < 9; i++) {
+    const piece = boxMesh(1.2 + rng() * 1.4, .15 + rng() * .35, .7 + rng() * 1.5, furnitureMat, (rng() - .5) * 23, .15 + rng() * .2, 30 - rng() * 74);
+    piece.rotation.set((rng() - .5) * .8, rng() * Math.PI, (rng() - .5) * .7);
+    scene.add(piece);
+  }
 
   const lampPositions = [[-13.8, 27], [13.8, 19], [-13.8, 2], [13.8, -12], [-13.8, -29], [13.8, -44]];
   lampPositions.forEach(([x, z], i) => createLamp(scene, x, z, x < 0 ? -1 : 1, sceneLights, colliders, i === 1 || i === 4));
@@ -644,13 +735,14 @@ export function createCityWorld(scene, renderer) {
     s.rotation.z = (Math.random() - .5) * .8; scene.add(s); hangingSigns.push(s);
   }
 
+  cameraColliders.push(...colliders);
   const cameraRay = new THREE.Ray();
   const cameraBox = new THREE.Box3();
   const cameraHit = new THREE.Vector3();
   const cameraDir = new THREE.Vector3();
   const cameraPoint = new THREE.Vector3();
   const world = {
-    colliders, searchZones: zones, sceneLights, moon, puddles,
+    colliders, cameraColliders, searchZones: zones, sceneLights, moon, puddles, tightSpaces: [{ x: 3.5, z: -20.5, minX: .25, maxX: 6.65, minZ: -25.9, maxZ: -15.3, clearance: .53 }],
     groundAt() { return 0; },
     cameraSafePoint(target, desired, margin = .22) {
       cameraDir.subVectors(desired, target);
@@ -659,9 +751,9 @@ export function createCityWorld(scene, renderer) {
       cameraDir.multiplyScalar(1 / fullDistance);
       cameraRay.set(target, cameraDir);
       let nearest = fullDistance;
-      for (const c of colliders) {
-        cameraBox.min.set(c.minX, 0, c.minZ);
-        cameraBox.max.set(c.maxX, c.height || 3, c.maxZ);
+      for (const c of cameraColliders) {
+        cameraBox.min.set(c.minX, c.minY || 0, c.minZ);
+        cameraBox.max.set(c.maxX, c.maxY || c.height || 3, c.maxZ);
         if (cameraRay.intersectBox(cameraBox, cameraHit)) {
           const distance = target.distanceTo(cameraHit);
           if (distance > .05 && distance < nearest) nearest = distance;
@@ -677,6 +769,19 @@ export function createCityWorld(scene, renderer) {
         const cz = clamp(z, c.minZ, c.maxZ);
         const dx = x - cx; const dz = z - cz;
         if (dx * dx + dz * dz < radius * radius) return false;
+      }
+      return true;
+    },
+    hasLineOfSight(from, to) {
+      const steps = 18;
+      for (let i = 1; i < steps; i++) {
+        const t = i / steps;
+        const x = from.x + (to.x - from.x) * t;
+        const z = from.z + (to.z - from.z) * t;
+        for (const c of colliders) {
+          if (c.height !== undefined && c.height < .5) continue;
+          if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ) return false;
+        }
       }
       return true;
     },
@@ -737,8 +842,9 @@ export function createCityWorld(scene, renderer) {
         const pulse = .5 + .5 * Math.sin(time * 1.4 + i * 1.7);
         zone.ring.material.opacity = .08 + pulse * .055;
         zone.inner.material.opacity = .08 + pulse * .12;
-        zone.heat.material.opacity = .1 + pulse * .12;
-        zone.signal.intensity = 5.5 + pulse * 2.4;
+        zone.heat.visible = !!zone.evidence.thermalDetected;
+        zone.heat.material.opacity = zone.evidence.thermalDetected ? .18 + pulse * .16 : 0;
+        zone.signal.intensity = zone.evidence.thermalDetected ? 5.5 + pulse * 2.4 : 0;
         zone.marker.rotation.y += dt * .65;
         zone.marker.position.y = 1.12 + Math.sin(time * 1.5 + i) * .12;
       });

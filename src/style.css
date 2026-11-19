@@ -103,7 +103,7 @@ button:focus-visible { outline: 1px solid var(--amber); outline-offset: 4px; }
 .status-mode i { width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
 .status-mode.mobile i { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
 .status-block p { margin: 7px 0 11px; font-size: 10px; color: var(--bone-dim); }
-.status-actions { display: flex; justify-content: flex-end; gap: 6px; pointer-events: auto; }
+.status-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; pointer-events: auto; }
 .status-actions button { padding: 5px 7px; border: 1px solid var(--line); background: transparent; font: 9px/1 var(--f-mono); letter-spacing: .08em; color: var(--bone-dim); cursor: pointer; }
 .status-actions button:hover { color: var(--bone); border-color: var(--amber); }
 
@@ -271,3 +271,39 @@ button:focus-visible { outline: 1px solid var(--amber); outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
+
+/* Radar */
+.radar-page { position: absolute; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; padding: 24px; background: radial-gradient(ellipse at center, rgba(8,24,26,.74), rgba(3,7,8,.96) 74%); pointer-events: auto; }
+.radar-frame { width: min(1040px, 96vw); border: 1px solid var(--line-strong); background: rgba(4,10,12,.96); box-shadow: 0 30px 100px rgba(0,0,0,.72), 0 0 90px rgba(98,212,228,.07); }
+.radar-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.radar-head div { display: flex; align-items: baseline; gap: 16px; }
+.radar-head span { font: 10px/1 var(--f-mono); letter-spacing: .18em; color: var(--cyan); }
+.radar-head b { font: 500 10px/1 var(--f-mono); letter-spacing: .1em; color: var(--bone-faint); }
+.radar-head button { padding: 7px 9px; border: 1px solid var(--line); background: transparent; font: 9px/1 var(--f-mono); letter-spacing: .12em; color: var(--bone-dim); cursor: pointer; }
+.radar-body { display: grid; grid-template-columns: minmax(420px, 1.2fr) minmax(260px, .8fr); gap: 20px; padding: 20px; }
+.radar-screen-wrap { position: relative; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(circle, rgba(27,56,58,.24), rgba(3,8,9,.7)); border: 1px solid rgba(98,212,228,.16); }
+#radar-canvas { width: min(100%, 620px); height: auto; display: block; }
+.radar-range { position: absolute; right: 14px; bottom: 12px; font: 9px/1 var(--f-mono); letter-spacing: .12em; color: var(--cyan); }
+.radar-side { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.radar-stat { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--line); font: 9px/1 var(--f-mono); letter-spacing: .1em; color: var(--bone-dim); }
+.radar-stat b { color: var(--bone); font-weight: 500; }
+.radar-contact-title { margin-top: 13px; font: 9px/1 var(--f-mono); letter-spacing: .16em; color: var(--amber); }
+.radar-contacts { display: flex; flex-direction: column; gap: 8px; min-height: 150px; max-height: 330px; overflow: auto; }
+.radar-contact { display: grid; grid-template-columns: 24px 1fr auto auto; align-items: center; gap: 8px; padding: 10px; border: 1px solid rgba(98,212,228,.2); background: rgba(98,212,228,.04); }
+.radar-contact.confirmed { border-color: rgba(245,173,81,.45); background: rgba(245,173,81,.05); }
+.radar-contact .contact-icon { width: 14px; height: 18px; position: relative; }
+.radar-contact .contact-icon::before { content:""; position:absolute; left:4px; top:0; width:6px; height:6px; border-radius:50%; background:var(--cyan); }
+.radar-contact .contact-icon::after { content:""; position:absolute; left:1px; top:8px; width:12px; height:9px; border:1px solid var(--cyan); border-radius:7px 7px 2px 2px; }
+.radar-contact.confirmed .contact-icon::before, .radar-contact.confirmed .contact-icon::after { border-color:var(--amber); background:var(--amber); }
+.radar-contact.confirmed .contact-icon::after { background:transparent; }
+.radar-contact div { display:flex; flex-direction:column; gap:4px; }
+.radar-contact b { font-size:10px; letter-spacing:.06em; }
+.radar-contact small { font:8px/1 var(--f-mono); color:var(--bone-dim); }
+.radar-contact strong { font:600 11px/1 var(--f-display); color:var(--amber); }
+.radar-contact em { font:8px/1 var(--f-mono); font-style:normal; color:var(--cyan); }
+.radar-empty { margin:22px 0; text-align:center; font-size:11px; line-height:1.8; color:var(--bone-dim); }
+.radar-empty span { font:8px/1.5 var(--f-mono); color:var(--bone-faint); }
+.radar-note { margin:auto 0 0; padding-top:12px; border-top:1px solid var(--line); font-size:9px; line-height:1.65; color:var(--bone-faint); }
+#auto-btn.active { color: var(--ink); background: var(--amber); border-color: var(--amber); }
+#radar-btn.active { color: var(--ink); background: var(--cyan); border-color: var(--cyan); }
+@media (max-width: 800px) { .radar-page { padding: 10px; } .radar-body { grid-template-columns: 1fr; padding: 12px; } .radar-side { max-height: 220px; } .radar-contact-title { margin-top:6px; } }

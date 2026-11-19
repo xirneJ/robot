@@ -74,7 +74,9 @@ export function createHUD() {
         el('mission-detail').textContent = '指挥中心已接收全部现场数据';
       } else if (state.activeZone) {
         el('mission-title').textContent = `搜索区 ${state.activeZone.id} · 疑似信号`;
-        el('mission-detail').textContent = state.mode === 'STOP' ? '保持驻停，按住 R 完成融合扫描' : '减速驻停可提升探测精度';
+        el('mission-detail').textContent = state.activeZone.evidence.thermalDetected
+          ? `温度 ${state.thermalReading?.toFixed(1) || '--'}°C · 检测到异常人体热源`
+          : (state.mode === 'STOP' ? '保持驻停，温度传感器正在收敛' : '减速驻停可提升温度与生命探测精度');
       } else {
         el('mission-title').textContent = '确认三处生命信号';
         el('mission-detail').textContent = '沿街区搜索，接近橙色信号区';
@@ -133,19 +135,7 @@ export function createHUD() {
         el('scan-copy').textContent = '按住 R 开始多源融合扫描';
       }
 
-      const marker = el('target-marker');
-      if (zone && !zone.evidence.uploaded) {
-        projected.copy(zone.core.position).add(zone.group.position);
-        projected.y += 1.25;
-        projected.project(camera);
-        if (projected.z < 1 && projected.z > -1) {
-          marker.hidden = false;
-          marker.style.left = `${(projected.x * .5 + .5) * innerWidth}px`;
-          marker.style.top = `${(-projected.y * .5 + .5) * innerHeight}px`;
-          el('target-label').textContent = `目标 ${zone.id} · ${zone.label}`;
-          el('target-distance').textContent = `${state.distance.toFixed(1)} m`;
-        } else marker.hidden = true;
-      } else marker.hidden = true;
+      el('target-marker').hidden = true;
 
       const evidence = zone && zone.evidence.confirmed && !zone.evidence.uploaded ? zone.evidence : null;
       const card = el('evidence-card');
@@ -183,6 +173,17 @@ export function createHUD() {
     },
     setMuted(muted) { el('mute-btn').textContent = muted ? '声音 关' : '声音 开'; },
     setPause(visible) { el('pause-chip').hidden = !visible; },
+    setRadar(visible) {
+      el('radar-page').hidden = !visible;
+      el('radar-btn').classList.toggle('active', visible);
+    },
+    setAuto(active, autoState = {}) {
+      el('auto-btn').classList.toggle('active', !!active);
+      el('auto-btn').textContent = active ? '自动寻人中' : '自动寻人 F';
+      const text = active ? (autoState.phase === 'scanning' ? '自动扫描' : autoState.phase === 'awaiting-confirm' ? '等待人工确认' : '路径跟随') : '未启用';
+      const radarState = el('radar-auto-state');
+      if (radarState) radarState.textContent = text;
+    },
     reset() {
       completeShown = false;
       el('complete-panel').hidden = true;

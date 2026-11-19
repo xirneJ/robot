@@ -63,6 +63,8 @@
           <div class="status-mode"><i id="mode-led"></i><span id="mode-label">驻停</span></div>
           <p id="mode-detail">六足稳定 · 高精度传感</p>
           <div class="status-actions">
+            <button id="auto-btn" type="button" aria-label="自动寻人">自动寻人 F</button>
+            <button id="radar-btn" type="button" aria-label="打开雷达页">雷达 Tab</button>
             <button id="mute-btn" type="button" aria-label="切换声音">声音 开</button>
             <button id="help-btn" type="button" aria-label="显示操作说明">操作 H</button>
           </div>
@@ -109,7 +111,7 @@
         <div class="scan-meta"><span id="scan-copy">进入信号区后按住 R 扫描</span><span id="scan-pct">0%</span></div>
       </section>
 
-      <div class="bottom-prompt"><span>WASD 驾驶</span><span>SHIFT 加速</span><span>G 切换步态</span><span>R 扫描</span><span>E 确认上传</span><span>H 帮助</span></div>
+      <div class="bottom-prompt"><span>WASD 驾驶</span><span>SHIFT 加速</span><span>G 切换步态</span><span>R 扫描</span><span>F 自动寻人</span><span>TAB 雷达</span><span>E 确认上传</span><span>H 帮助</span></div>
 
       <aside id="evidence-card" class="evidence-card" hidden>
         <div class="evidence-head"><span>证据融合 / EVIDENCE</span><b id="evidence-id">A</b></div>
@@ -126,6 +128,26 @@
 
       <div id="toast" class="toast"></div>
 
+      <section id="radar-page" class="radar-page" hidden>
+        <div class="radar-frame">
+          <header class="radar-head">
+            <div><span>PEOPLE FINDER / 雷达搜索</span><b>毫米波 · 红外 · 声学融合</b></div>
+            <button id="radar-close" type="button">关闭 TAB</button>
+          </header>
+          <div class="radar-body">
+            <div class="radar-screen-wrap"><canvas id="radar-canvas" width="560" height="560"></canvas><span class="radar-range">30 m</span></div>
+            <aside class="radar-side">
+              <div class="radar-stat"><span>温度阈值</span><b>34.5 °C</b></div>
+              <div class="radar-stat"><span>检测模式</span><b>人体热源</b></div>
+              <div class="radar-stat"><span>自动寻人</span><b id="radar-auto-state">未启用</b></div>
+              <div class="radar-contact-title">已探测联系人</div>
+              <div id="radar-contacts" class="radar-contacts"></div>
+              <p class="radar-note">只有温度达到人体阈值后，雷达才显示疑似人员。毫米波与声音用于交叉验证，最终确认仍由操作员完成。</p>
+            </aside>
+          </div>
+        </div>
+      </section>
+
       <aside id="help-panel" class="help-panel" hidden>
         <div class="help-head"><span>CONTROL / 操作手册</span><button id="help-close" type="button">关闭</button></div>
         <div class="help-grid">
@@ -135,6 +157,8 @@
           <div><kbd>SPACE</kbd><span>紧急驻停</span></div>
           <div><kbd>G</kbd><span>三角 / 波动步态</span></div>
           <div><kbd>R</kbd><span>按住扫描</span></div>
+          <div><kbd>F</kbd><span>自动寻人</span></div>
+          <div><kbd>TAB</kbd><span>打开雷达页</span></div>
           <div><kbd>E</kbd><span>确认并上传</span></div>
           <div><kbd>鼠标</kbd><span>环绕镜头 / 观察</span></div>
           <div><kbd>滚轮</kbd><span>镜头距离</span></div>

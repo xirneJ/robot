@@ -7,6 +7,8 @@ import { createInput } from './input.js';
 import { createMission } from './mission.js';
 import { createHUD } from './hud.js';
 import { createAudio } from './audio.js';
+import { createAutopilot } from './autopilot.js';
+import { createRadar } from './radar.js';
 import { WebGPURenderer } from 'three/webgpu';
 import { createPostPipeline } from './post.js';
 import { clamp } from './core.js';
@@ -49,6 +51,8 @@ const mission = createMission(world.searchZones);
 const hud = createHUD();
 const audio = createAudio();
 const chase = createChaseCamera(camera, robot, input, world);
+const autopilot = createAutopilot(world, robot, mission);
+const radar = createRadar(document.querySelector('#radar-canvas'), world, robot, mission, autopilot);
 
 let started = false;
 let completeHandled = false;
@@ -94,6 +98,10 @@ function updateBoot() {
 function resetRound() {
   mission.reset();
   locomotion.reset();
+  autopilot.reset();
+  radar.toggle(false);
+  hud.setRadar(false);
+  hud.setAuto(false, autopilot.state);
   robot.root.position.set(0, 0, 29);
   robot.root.rotation.set(0, 0, 0);
   input.reset();
@@ -121,6 +129,23 @@ function startMission() {
   hud.toast('ISR-06 控制链路已接入');
 }
 
+function toggleRadar(force) {
+  const visible = radar.toggle(force);
+  hud.setRadar(visible);
+  if (visible) radar.resize();
+}
+
+function toggleAuto(force) {
+  const active = autopilot.toggle(force);
+  hud.setAuto(active, autopilot.state);
+  if (active) {
+    hud.toast('自动寻人已启动 · 抵达搜索区后自动扫描');
+    audio.radio();
+  } else {
+    hud.toast('自动寻人已停止');
+  }
+}
+
 function handleActions() {
   if (input.consume('gait')) {
     locomotion.state.gaitMode = locomotion.state.gaitMode === 'tripod' ? 'wave' : 'tripod';
@@ -128,6 +153,8 @@ function handleActions() {
     audio.radio();
   }
   if (input.consume('help')) hud.toggleHelp();
+  if (input.consume('radar')) toggleRadar();
+  if (input.consume('auto')) toggleAuto();
   if (input.consume('mute')) {
     audio.start();
     hud.setMuted(audio.mute());
@@ -171,15 +198,14 @@ function updateAim() {
   input.state.aimPoint = aimPoint;
 }
 
-function scanKeyForMission() {
-  return !!(debugControls?.scan ?? input.state.scan);
-}
-
-function updateMissionSystems(dt) {
+function updateMissionSystems(dt, controls) {
+  const currentZone = mission.state.activeZone;
+  const lineOfSight = !currentZone || world.hasLineOfSight(robot.root.position, currentZone.victimWorld);
   const state = mission.update(dt, {
     position: robot.root.position,
     speed: locomotion.state.speed,
-    scanning: scanKeyForMission()
+    scanning: !!controls.scan,
+    lineOfSight
   });
   if (state.activeZone && state.activeZone.id !== lastZoneNotified) {
     lastZoneNotified = state.activeZone.id;
@@ -198,6 +224,8 @@ function updateMissionSystems(dt) {
 function handleComplete(state) {
   if (!state.complete || completeHandled) return;
   completeHandled = true;
+  autopilot.toggle(false);
+  hud.setAuto(false, autopilot.state);
   audio.complete();
   input.releaseLock();
 }
@@ -235,11 +263,17 @@ function animate(now) {
   if (started) {
     if (!mission.state.complete) {
       handleActions();
-      locomotion.update(dt, mergedControls);
-      const missionState = updateMissionSystems(dt);
+      let activeControls = mergedControls;
+      if (autopilot.state.enabled) {
+        activeControls = autopilot.update(now) || mergedControls;
+      }
+      locomotion.update(dt, activeControls);
+      const missionState = updateMissionSystems(dt, activeControls);
       updateAim();
       chase.update(dt, locomotion.state.speed);
       updateHUD(elapsed, missionState);
+      hud.setAuto(autopilot.state.enabled, autopilot.state);
+      if (radar.visible) radar.update(elapsed);
       handleComplete(missionState);
       world.update(dt, elapsed, robot.root.position, locomotion.state.speed, mission.state.scanning);
       audio.update(dt, {
@@ -276,6 +310,7 @@ addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   post.setSize(innerWidth, innerHeight);
+  if (radar.visible) radar.resize();
 });
 
 document.addEventListener('pointerlockchange', () => {
@@ -291,6 +326,9 @@ canvas.addEventListener('dblclick', () => {
 });
 startButton.addEventListener('click', startMission);
 document.querySelector('#help-btn').addEventListener('click', () => hud.toggleHelp());
+document.querySelector('#radar-btn').addEventListener('click', () => toggleRadar());
+document.querySelector('#auto-btn').addEventListener('click', () => toggleAuto());
+document.querySelector('#radar-close').addEventListener('click', () => toggleRadar(false));
 document.querySelector('#help-close').addEventListener('click', () => hud.toggleHelp(false));
 document.querySelector('#mute-btn').addEventListener('click', () => {
   audio.start();
@@ -304,6 +342,8 @@ window.__ISR__ = {
   world,
   mission,
   locomotion,
+  autopilot,
+  radar,
   renderer,
   renderBackend: post.isWebGPU ? 'webgpu' : 'webgl2',
   state() {
@@ -318,7 +358,12 @@ window.__ISR__ = {
       gait: locomotion.state.gaitMode,
       position: robot.root.position.toArray(),
       stance: locomotion.state.stanceCount,
-      scale: robot.root.scale.x
+      scale: robot.root.scale.x,
+      thermal: mission.state.thermalReading,
+      contacts: mission.state.contacts.length,
+      auto: autopilot.state.enabled,
+      autoPhase: autopilot.state.phase,
+      radar: radar.visible
     };
   },
   teleportToZone(index) {
@@ -342,6 +387,8 @@ window.__ISR__ = {
   },
   clearControls() { debugControls = null; },
   setGait(mode) { locomotion.state.gaitMode = mode === 'wave' ? 'wave' : 'tripod'; },
+  toggleAuto(force) { toggleAuto(force); },
+  toggleRadar(force) { toggleRadar(force); },
   confirmTarget() {
     if (mission.state.activeZone && !mission.state.activeZone.evidence.confirmed) {
       mission.forceScan(mission.state.activeZone);
@@ -363,15 +410,22 @@ window.__ISR__ = {
       scan: !!controls.scan
     };
     for (let i = 0; i < steps; i++) {
-      locomotion.update(dt, merged);
+      const nowSim = performance.now() + i * dt * 1000;
+      const active = autopilot.state.enabled ? (autopilot.update(nowSim) || merged) : merged;
+      locomotion.update(dt, active);
+      const currentZone = mission.state.activeZone;
+      const lineOfSight = !currentZone || world.hasLineOfSight(robot.root.position, currentZone.victimWorld);
       mission.update(dt, {
         position: robot.root.position,
         speed: locomotion.state.speed,
-        scanning: merged.scan
+        scanning: !!active.scan,
+        lineOfSight
       });
-      world.update(dt, performance.now() / 1000 + i * dt, robot.root.position, locomotion.state.speed, mission.state.scanning);
+      world.update(dt, nowSim / 1000, robot.root.position, locomotion.state.speed, mission.state.scanning);
     }
     chase.update(1 / 30, locomotion.state.speed);
+    hud.setAuto(autopilot.state.enabled, autopilot.state);
+    if (radar.visible) radar.update(performance.now() / 1000);
     updateHUD(performance.now() / 1000, mission.state);
     post.render();
     return this.state();
