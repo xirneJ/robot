@@ -492,6 +492,17 @@ export function createHexapod() {
         if (state.pressures) leg.pressure = state.pressures[i];
       });
     },
+    getLegWorldPoints(index) {
+      const leg = legs[index];
+      root.updateMatrixWorld(true);
+      const hip = new THREE.Vector3();
+      const knee = new THREE.Vector3();
+      const foot = new THREE.Vector3();
+      leg.hipYaw.getWorldPosition(hip);
+      leg.knee.getWorldPosition(knee);
+      leg.foot.getWorldPosition(foot);
+      return { hip, knee, foot };
+    },
     markContact(index, strength = 1) {
       const leg = legs[index];
       if (!leg) return;

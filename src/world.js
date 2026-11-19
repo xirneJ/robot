@@ -39,6 +39,34 @@ function asphaltTexture() {
   return tex;
 }
 
+function stoneTexture() {
+  const c = makeCanvas(512, 512);
+  const g = c.getContext('2d');
+  g.fillStyle = '#787b73'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 12000; i++) {
+    const v = 58 + Math.floor(Math.random() * 65);
+    g.fillStyle = `rgba(${v + 8},${v + 6},${v},${.12 + Math.random() * .28})`;
+    const size = Math.random() < .94 ? 1 : 2 + Math.random() * 4;
+    g.fillRect(Math.random() * 512, Math.random() * 512, size, size);
+  }
+  g.strokeStyle = 'rgba(22,24,22,.45)'; g.lineWidth = 1.4;
+  for (let i = 0; i < 32; i++) {
+    g.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; g.moveTo(x, y);
+    for (let j = 0; j < 5; j++) { x += (Math.random() - .5) * 42; y += (Math.random() - .5) * 42; g.lineTo(x, y); }
+    g.stroke();
+  }
+  for (let i = 0; i < 90; i++) {
+    g.fillStyle = `rgba(20,24,21,${.04 + Math.random() * .1})`;
+    g.beginPath(); g.arc(Math.random() * 512, Math.random() * 512, 2 + Math.random() * 13, 0, Math.PI * 2); g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(2.2, 2.2);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
 function facadeTexture(seed = 0) {
   const c = makeCanvas(512, 1024);
   const g = c.getContext('2d');
@@ -255,6 +283,10 @@ function addCollider(colliders, x, z, w, d, pad = 0, height = 3) {
   colliders.push({ minX: x - w / 2 - pad, maxX: x + w / 2 + pad, minZ: z - d / 2 - pad, maxZ: z + d / 2 + pad, height });
 }
 
+function addDetailCollider(detailColliders, x, z, w, d, height, kind = 'debris') {
+  detailColliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, minY: 0, maxY: Math.max(.04, height), height: Math.max(.04, height), kind });
+}
+
 function createBuilding(scene, colliders, x, z, w, d, h, side, random, facadeTex) {
   const group = new THREE.Group();
   const seedForShop = Math.floor(random() * 4);
@@ -262,6 +294,7 @@ function createBuilding(scene, colliders, x, z, w, d, h, side, random, facadeTex
   const facadeRotY = side < 0 ? Math.PI / 2 : -Math.PI / 2;
   const concrete = new THREE.MeshStandardMaterial({
     color: 0x7a8485, map: facadeTex, emissiveMap: facadeTex,
+    bumpMap: facadeTex, bumpScale: .035,
     emissive: 0x6e7e80, emissiveIntensity: .66, roughness: .88, metalness: .08
   });
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x4b5353, roughness: .72, metalness: .18 });
@@ -429,7 +462,7 @@ function createCar(scene, colliders, x, z, rotY, flipped = false) {
   addCollider(colliders, x, z, 2.5, 4.5, .15, 1.75);
 }
 
-function createCone(scene, x, z) {
+function createCone(scene, x, z, detailColliders) {
   const g = new THREE.Group();
   const orange = new THREE.MeshStandardMaterial({ color: 0xc95b25, roughness: .62 });
   const white = new THREE.MeshStandardMaterial({ color: 0xd8d4c7, roughness: .55 });
@@ -437,6 +470,7 @@ function createCone(scene, x, z) {
   const cone = new THREE.Mesh(new THREE.ConeGeometry(.16, .52, 12), orange); cone.position.y = .3; g.add(cone);
   const stripe = new THREE.Mesh(new THREE.CylinderGeometry(.105, .13, .09, 12), white); stripe.position.y = .34; g.add(stripe);
   g.position.set(x, 0, z); scene.add(g);
+  addDetailCollider(detailColliders, x, z, .42, .42, .58, 'cone');
 }
 
 function createBarricade(scene, colliders, x, z, rotation = 0) {
@@ -524,9 +558,9 @@ function createLamp(scene, x, z, side, sceneLights, colliders, useLight = false)
   return group;
 }
 
-function createRubbleMound(scene, x, z, scale, random, color = 0x303635) {
+function createRubbleMound(scene, x, z, scale, random, color = 0x303635, texture = null) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: .92, metalness: .04 });
+  const mat = new THREE.MeshStandardMaterial({ color, map: texture, bumpMap: texture, bumpScale: .045, roughness: .9, metalness: .04 });
   for (let i = 0; i < 12; i++) {
     const geo = new THREE.DodecahedronGeometry(.45 + random() * .75, 0);
     const m = new THREE.Mesh(geo, mat);
@@ -614,6 +648,7 @@ function createSearchZone(scene, data, index, glowTex) {
 
 export function createCityWorld(scene, renderer) {
   const colliders = [];
+  const detailColliders = [];
   const cameraColliders = [];
   const zones = [];
   const sceneLights = [];
@@ -676,6 +711,7 @@ export function createCityWorld(scene, renderer) {
   scene.add(moon);
 
   const asphalt = asphaltTexture();
+  const stoneTex = stoneTexture();
   const wetNormal = waterNormalTexture();
   const roadMat = new THREE.MeshPhysicalMaterial({
     color: 0x778183, map: asphalt, roughness: .3, metalness: .22,
@@ -796,7 +832,7 @@ export function createCityWorld(scene, renderer) {
   createBarricade(scene, colliders, -5.2, 16.2, .08);
   createBarricade(scene, colliders, 8.8, -4.2, -.22);
   createBarricade(scene, colliders, -6.4, -15.8, .55);
-  [[-2.2, 20.2], [5.7, 4.2], [-4.6, -8.2], [8.8, -15.7], [-8.2, -31.5], [1.8, -41.2], [11.4, -24.6]].forEach(([x, z]) => createCone(scene, x, z));
+  [[-2.2, 20.2], [5.7, 4.2], [-4.6, -8.2], [8.8, -15.7], [-8.2, -31.5], [1.8, -41.2], [11.4, -24.6]].forEach(([x, z]) => createCone(scene, x, z, detailColliders));
   [[-12.6, 21.5], [12.4, 1.2], [-12.8, -14.8], [12.5, -35.5]].forEach(([x, z]) => createBin(scene, colliders, x, z));
   createFireEscape(scene, -19.7, 3, 1);
   createFireEscape(scene, 20.2, -31, -1);
@@ -807,12 +843,12 @@ export function createCityWorld(scene, renderer) {
     [8, -15, 3.4, .7], [-9.2, -27, 3.6, .72], [4.7, -36, 3.2, .68], [-3.5, -44, 3.4, .66]
   ];
   rubbleSpecs.forEach(([x, z, s, opacity]) => {
-    createRubbleMound(scene, x, z, s, rng, opacity > .7 ? 0x283031 : 0x343b3a);
+    createRubbleMound(scene, x, z, s, rng, opacity > .7 ? 0x283031 : 0x343b3a, stoneTex);
     if (s > 2.7) addCollider(colliders, x, z, s * 1.25, s * 1.15, .15, s * .85);
   });
-  [[-6, 18, 1.9], [11, 5, 1.6], [-12, -7, 2.0], [8.5, -18, 1.8], [-5, -34, 2.1], [12, -43, 2.2]].forEach(([x, z, scale]) => createRubbleMound(scene, x, z, scale, rng, 0x313735));
+  [[-6, 18, 1.9], [11, 5, 1.6], [-12, -7, 2.0], [8.5, -18, 1.8], [-5, -34, 2.1], [12, -43, 2.2]].forEach(([x, z, scale]) => createRubbleMound(scene, x, z, scale, rng, 0x313735, stoneTex));
 
-  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x414846, roughness: .94, metalness: .03 });
+  const debrisMat = new THREE.MeshStandardMaterial({ color: 0x555b56, map: stoneTex, bumpMap: stoneTex, bumpScale: .05, roughness: .92, metalness: .03 });
   const debris = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(.24, 0), debrisMat, 180);
   const debrisMatrix = new THREE.Matrix4();
   const debrisQuat = new THREE.Quaternion();
@@ -820,18 +856,24 @@ export function createCityWorld(scene, renderer) {
     const x = (rng() - .5) * 28;
     const z = 32 - rng() * 78;
     const scale = .35 + rng() * 1.8;
+    const sy = scale * (.4 + rng() * .5);
+    const py = .06 + rng() * .17;
     debrisQuat.setFromEuler(new THREE.Euler(rng() * 3, rng() * 3, rng() * 3));
-    debrisMatrix.compose(new THREE.Vector3(x, .06 + rng() * .17, z), debrisQuat, new THREE.Vector3(scale, scale * (.4 + rng() * .5), scale));
+    debrisMatrix.compose(new THREE.Vector3(x, py, z), debrisQuat, new THREE.Vector3(scale, sy, scale));
     debris.setMatrixAt(i, debrisMatrix);
+    if (scale > .55) addDetailCollider(detailColliders, x, z, .43 * scale, .43 * scale, py + .24 * sy, 'stone');
   }
   debris.instanceMatrix.needsUpdate = true;
   debris.castShadow = false; debris.receiveShadow = true; scene.add(debris);
 
   const furnitureMat = new THREE.MeshStandardMaterial({ color: 0x45372e, roughness: .9 });
   for (let i = 0; i < 9; i++) {
-    const piece = boxMesh(1.2 + rng() * 1.4, .15 + rng() * .35, .7 + rng() * 1.5, furnitureMat, (rng() - .5) * 23, .15 + rng() * .2, 30 - rng() * 74);
+    const fw = 1.2 + rng() * 1.4; const fh = .15 + rng() * .35; const fd = .7 + rng() * 1.5;
+    const fx = (rng() - .5) * 23; const fz = 30 - rng() * 74;
+    const piece = boxMesh(fw, fh, fd, furnitureMat, fx, .15 + rng() * .2, fz);
     piece.rotation.set((rng() - .5) * .8, rng() * Math.PI, (rng() - .5) * .7);
     scene.add(piece);
+    addDetailCollider(detailColliders, fx, fz, fw, fd, fh + .22, 'furniture');
   }
 
   const lampPositions = [[-13.8, 27], [13.8, 19], [-13.8, 2], [13.8, -12], [-13.8, -29], [13.8, -44]];
@@ -913,15 +955,37 @@ export function createCityWorld(scene, renderer) {
     s.rotation.z = (Math.random() - .5) * .8; scene.add(s); hangingSigns.push(s);
   }
 
-  cameraColliders.push(...colliders);
+  cameraColliders.push(...colliders, ...detailColliders);
+  const debugCollisionGroup = new THREE.Group();
+  debugCollisionGroup.visible = false;
+  const envEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1));
+  const envLineMat = new THREE.LineBasicMaterial({ color: 0x4fd9e8, transparent: true, opacity: .55, depthWrite: false });
+  const detailLineMat = new THREE.LineBasicMaterial({ color: 0xf4ad52, transparent: true, opacity: .55, depthWrite: false });
+  for (const c of colliders) {
+    const line = new THREE.LineSegments(envEdges, envLineMat);
+    line.position.set((c.minX + c.maxX) / 2, (c.height || 3) / 2, (c.minZ + c.maxZ) / 2);
+    line.scale.set(Math.max(.03, c.maxX - c.minX), c.height || 3, Math.max(.03, c.maxZ - c.minZ));
+    debugCollisionGroup.add(line);
+  }
+  for (const c of detailColliders) {
+    const line = new THREE.LineSegments(envEdges, detailLineMat);
+    line.position.set((c.minX + c.maxX) / 2, (c.maxY || c.height || .1) / 2, (c.minZ + c.maxZ) / 2);
+    line.scale.set(Math.max(.03, c.maxX - c.minX), c.maxY || c.height || .1, Math.max(.03, c.maxZ - c.minZ));
+    debugCollisionGroup.add(line);
+  }
+  scene.add(debugCollisionGroup);
+  let debugVisible = false;
+
   const cameraRay = new THREE.Ray();
   const cameraBox = new THREE.Box3();
   const cameraHit = new THREE.Vector3();
   const cameraDir = new THREE.Vector3();
   const cameraPoint = new THREE.Vector3();
   const world = {
-    colliders, cameraColliders, searchZones: zones, sceneLights, moon, puddles, tightSpaces: [{ x: 3.5, z: -20.5, minX: .25, maxX: 6.65, minZ: -25.9, maxZ: -15.3, clearance: .53 }],
+    colliders, detailColliders, cameraColliders, debugCollisionGroup, searchZones: zones, sceneLights, moon, puddles, tightSpaces: [{ x: 3.5, z: -20.5, minX: .25, maxX: 6.65, minZ: -25.9, maxZ: -15.3, clearance: .53 }],
     groundAt() { return 0; },
+    footHeightAt(x, z) { return this.physics?.groundHeight(x, z) ?? this.groundAt(x, z); },
+    toggleCollisionDebug(force) { debugVisible = typeof force === 'boolean' ? force : !debugVisible; debugCollisionGroup.visible = debugVisible; return debugVisible; },
     cameraSafePoint(target, desired, margin = .22) {
       cameraDir.subVectors(desired, target);
       const fullDistance = cameraDir.length();
@@ -947,6 +1011,13 @@ export function createCityWorld(scene, renderer) {
         const cz = clamp(z, c.minZ, c.maxZ);
         const dx = x - cx; const dz = z - cz;
         if (dx * dx + dz * dz < radius * radius) return false;
+      }
+      for (const c of detailColliders) {
+        if ((c.maxY ?? c.height ?? 0) < .16) continue;
+        const cx = clamp(x, c.minX, c.maxX);
+        const cz = clamp(z, c.minZ, c.maxZ);
+        const dx = x - cx; const dz = z - cz;
+        if (dx * dx + dz * dz < radius * radius * .72) return false;
       }
       return true;
     },

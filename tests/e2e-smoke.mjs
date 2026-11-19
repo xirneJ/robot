@@ -114,17 +114,28 @@ try {
         robotHeight = Math.max(robotHeight, v.y);
       }
     });
+    const physics = window.__ISR__.physics;
     return {
       robotCanEnter: window.__ISR__.world.canMove(3.5, -22, .62),
       clearance: window.__ISR__.world.tightSpaces[0].clearance,
       robotHeight,
-      cameraOccluders: window.__ISR__.world.cameraColliders.length
+      cameraOccluders: window.__ISR__.world.cameraColliders.length,
+      openBodyClear: physics.bodyClear(0, 29, .36, .48),
+      buildingBodyBlocked: physics.bodyClear(-21, 0, .63, .48),
+      openSegmentClear: physics.segmentClear({ x: 0, y: .3, z: 29 }, { x: 0, y: .3, z: 28 }, .04),
+      wallSegmentBlocked: physics.segmentClear({ x: -16, y: .3, z: 0 }, { x: -22, y: .3, z: 0 }, .04),
+      tunnelGround: physics.groundHeight(3.5, -22)
     };
   });
   assert.equal(tightSpace.robotCanEnter, true);
   assert.ok(tightSpace.clearance >= .5);
   assert.ok(tightSpace.robotHeight < tightSpace.clearance, 'robot must physically fit under the collapsed slab');
   assert.ok(tightSpace.cameraOccluders > 20);
+  assert.equal(tightSpace.openBodyClear, true);
+  assert.equal(tightSpace.buildingBodyBlocked, false);
+  assert.equal(tightSpace.openSegmentClear, true);
+  assert.equal(tightSpace.wallSegmentBlocked, false);
+  assert.ok(tightSpace.tunnelGround < .08, 'ground query should ignore overhead slab');
 
   const automatic = await page.evaluate(() => {
     window.__ISR__.restart();

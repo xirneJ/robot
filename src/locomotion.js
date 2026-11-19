@@ -24,7 +24,7 @@ export function createLocomotion(robot, world) {
     robot.legs.forEach((leg) => {
       tmpWorld.copy(localFoot(leg));
       root.localToWorld(tmpWorld);
-      tmpWorld.y = world.groundAt(tmpWorld.x, tmpWorld.z) + .055;
+      tmpWorld.y = world.footHeightAt(tmpWorld.x, tmpWorld.z) + .055;
       leg.footWorld.copy(tmpWorld);
       leg.swingFrom.copy(tmpWorld);
       leg.swingTo.copy(tmpWorld);
@@ -43,7 +43,7 @@ export function createLocomotion(robot, world) {
     targetLocal.x += state.turnRate * leg.anchorLocal.z * .12;
     tmpWorld.copy(targetLocal);
     root.localToWorld(tmpWorld);
-    tmpWorld.y = world.groundAt(tmpWorld.x, tmpWorld.z) + .055;
+    tmpWorld.y = world.footHeightAt(tmpWorld.x, tmpWorld.z) + .055;
     leg.swingFrom.copy(leg.footWorld);
     leg.swingTo.copy(tmpWorld);
     leg.swingT = 0;
@@ -79,7 +79,7 @@ export function createLocomotion(robot, world) {
         if (leg.swingT >= 1) {
           leg.inSwing = false;
           leg.footWorld.copy(leg.swingTo);
-          leg.footWorld.y = world.groundAt(leg.footWorld.x, leg.footWorld.z) + .055;
+          leg.footWorld.y = world.footHeightAt(leg.footWorld.x, leg.footWorld.z) + .055;
           leg.contact = 1;
           state.stepCount++;
           state.lastFootstep = performance.now();
@@ -93,6 +93,18 @@ export function createLocomotion(robot, world) {
       const load = leg.support ? .58 + .32 / Math.max(3, stanceCount) : .015;
       leg.pressure = clamp(load + (Math.random() - .5) * .035, .01, .98);
       state.footPressures[i] = leg.pressure;
+      let target = leg.footWorld.clone();
+      if (world.physics) {
+        for (let attempt = 0; attempt < 5; attempt++) {
+          robot.setFootWorld(i, target);
+          const points = robot.getLegWorldPoints(i);
+          const clear = world.physics.segmentClear(points.hip, points.knee, .04) && world.physics.segmentClear(points.knee, points.foot, .043);
+          if (clear) break;
+          target.lerp(points.hip, .16);
+          target.y = Math.max(target.y, leg.footWorld.y + .035 * (attempt + 1));
+        }
+        leg.footWorld.copy(target);
+      }
       robot.setFootWorld(i, leg.footWorld);
     });
     state.stanceCount = stanceCount;
@@ -124,7 +136,7 @@ export function createLocomotion(robot, world) {
       candidate.copy(root.position).addScaledVector(forward, state.speed * realDt);
       const radius = ROBOT_RADIUS;
       state.collision = false;
-      if (world.canMove(candidate.x, candidate.z, radius)) {
+      if (world.canMove(candidate.x, candidate.z, radius) && (!world.physics || world.physics.bodyClear(candidate.x, candidate.z, .36, .48))) {
         root.position.copy(candidate);
         state.distance += Math.abs(state.speed * realDt);
       } else {

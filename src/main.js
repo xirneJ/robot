@@ -9,6 +9,7 @@ import { createHUD } from './hud.js';
 import { createAudio } from './audio.js';
 import { createAutopilot } from './autopilot.js';
 import { createRadar } from './radar.js';
+import { createPhysicsWorld } from './physics.js';
 import { WebGPURenderer } from 'three/webgpu';
 import { createPostPipeline } from './post.js';
 import { clamp } from './core.js';
@@ -42,6 +43,8 @@ const post = createPostPipeline(renderer, scene, camera);
 document.querySelector('#link-state').textContent = post.isWebGPU ? 'WEBGPU 在线' : 'WEBGL2 兼容';
 
 const world = createCityWorld(scene, renderer);
+const physics = await createPhysicsWorld(world);
+world.physics = physics;
 const robot = createHexapod();
 robot.root.position.set(0, 0, 29);
 scene.add(robot.root);
@@ -155,6 +158,10 @@ function handleActions() {
     audio.radio();
   }
   if (input.consume('help')) hud.toggleHelp();
+  if (input.consume('collision')) {
+    const visible = world.toggleCollisionDebug();
+    hud.toast(visible ? '碰撞调试已开启' : '碰撞调试已关闭');
+  }
   if (input.consume('radar')) toggleRadar();
   if (input.consume('auto')) toggleAuto();
   if (input.consume('mute')) {
@@ -349,6 +356,7 @@ window.__ISR__ = {
   world,
   mission,
   locomotion,
+  physics,
   autopilot,
   radar,
   renderer,

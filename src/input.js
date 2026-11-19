@@ -10,10 +10,10 @@ export function createInput(canvas) {
   };
   let lastX = 0; let lastY = 0;
 
-  const edgeKeys = { KeyE: 'interact', KeyG: 'gait', KeyH: 'help', KeyM: 'mute', KeyF: 'auto', Tab: 'radar', Escape: 'escape' };
+  const edgeKeys = { KeyE: 'interact', KeyG: 'gait', KeyH: 'help', KeyM: 'mute', KeyF: 'auto', KeyP: 'collision', Tab: 'radar', Escape: 'escape' };
   const onKeyDown = (e) => {
     if (!state.enabled && e.code !== 'KeyH' && e.code !== 'KeyM') return;
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'Tab', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyG', 'KeyH', 'KeyM', 'Escape'].includes(e.code)) e.preventDefault();
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'KeyF', 'KeyP', 'Tab', 'Space', 'ShiftLeft', 'ShiftRight', 'KeyE', 'KeyG', 'KeyH', 'KeyM', 'Escape'].includes(e.code)) e.preventDefault();
     keys.add(e.code);
     if (!e.repeat && edgeKeys[e.code]) actions.add(edgeKeys[e.code]);
     if (!e.repeat && e.code === 'KeyR') actions.add('scanStart');

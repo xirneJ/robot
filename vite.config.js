@@ -5,6 +5,7 @@ export default {
   base: './',
   resolve: {
     alias: [
+      { find: /^@dimforge\/rapier3d-compat$/, replacement: path.join('E:/root/e-era-nav/node_modules/@dimforge/rapier3d-compat/rapier.es.js') },
       { find: /^three\/webgpu$/, replacement: path.join(threeRoot, 'build/three.webgpu.js') },
       { find: /^three\/tsl$/, replacement: path.join(threeRoot, 'build/three.tsl.js') },
       { find: /^three$/,  replacement: path.join(threeRoot, 'build/three.module.js') },
