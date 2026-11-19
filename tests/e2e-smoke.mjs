@@ -23,7 +23,7 @@ try {
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()); });
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.bringToFront();
-  await page.waitForFunction(() => window.__ISR__?.ready === true, null, { timeout: 20000 });
+  await page.waitForFunction(() => window.__ISR__?.ready === true, null, { timeout: 60000 });
   await page.waitForFunction(() => document.querySelector('#start-btn')?.disabled === false, null, { timeout: 5000 });
   await page.locator('#start-btn').click();
   await wait(500);

@@ -179,7 +179,9 @@ export function createHUD() {
     },
     setAuto(active, autoState = {}) {
       el('auto-btn').classList.toggle('active', !!active);
-      el('auto-btn').textContent = active ? '自动寻人中' : '自动寻人 F';
+      el('auto-btn').textContent = active
+        ? (autoState.phase === 'awaiting-confirm' ? '等待人工确认' : '自动寻人中')
+        : '自动寻人 F';
       const text = active ? (autoState.phase === 'scanning' ? '自动扫描' : autoState.phase === 'awaiting-confirm' ? '等待人工确认' : '路径跟随') : '未启用';
       const radarState = el('radar-auto-state');
       if (radarState) radarState.textContent = text;

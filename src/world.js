@@ -152,6 +152,98 @@ function signTexture(text, color = '#e7b15d') {
   return tex;
 }
 
+function storefrontTexture(seed = 0) {
+  const c = makeCanvas(1024, 512);
+  const g = c.getContext('2d');
+  const grd = g.createLinearGradient(0, 0, 0, 512);
+  grd.addColorStop(0, '#121b1d'); grd.addColorStop(.58, '#182728'); grd.addColorStop(1, '#080d0e');
+  g.fillStyle = grd; g.fillRect(0, 0, 1024, 512);
+  for (let i = 0; i < 2200; i++) {
+    const v = 16 + Math.random() * 28;
+    g.fillStyle = `rgba(${v},${v + 5},${v + 4},.18)`;
+    g.fillRect(Math.random() * 1024, Math.random() * 512, 1 + Math.random() * 4, 1 + Math.random() * 3);
+  }
+  g.fillStyle = 'rgba(241,170,80,.22)'; g.fillRect(0, 58, 1024, 8);
+  for (let x = 90; x < 1000; x += 240) {
+    const grad = g.createRadialGradient(x, 78, 0, x, 78, 100);
+    grad.addColorStop(0, 'rgba(255,191,105,.8)'); grad.addColorStop(1, 'rgba(255,191,105,0)');
+    g.fillStyle = grad; g.fillRect(x - 100, 0, 200, 190);
+    g.fillStyle = 'rgba(255,205,137,.9)'; g.fillRect(x - 11, 58, 22, 8);
+  }
+  for (let shelf = 0; shelf < 3; shelf++) {
+    const y = 210 + shelf * 78;
+    g.fillStyle = 'rgba(26,32,31,.95)'; g.fillRect(80, y, 860, 12);
+    for (let x = 105; x < 900; x += 46 + (seed % 3) * 5) {
+      const h = 20 + Math.random() * 35;
+      g.fillStyle = Math.random() < .25 ? 'rgba(92,134,133,.45)' : 'rgba(116,76,47,.35)';
+      g.fillRect(x, y - h, 20 + Math.random() * 12, h);
+    }
+  }
+  g.fillStyle = 'rgba(5,8,9,.72)'; g.fillRect(760, 90, 220, 330);
+  g.strokeStyle = 'rgba(122,145,143,.24)'; g.lineWidth = 4; g.strokeRect(760, 90, 220, 330);
+  for (let i = 0; i < 16; i++) {
+    g.strokeStyle = `rgba(130,170,175,${.08 + Math.random() * .15})`;
+    g.lineWidth = 1 + Math.random() * 2; g.beginPath();
+    let x = Math.random() * 1024, y = Math.random() * 512; g.moveTo(x, y);
+    for (let j = 0; j < 4; j++) { x += (Math.random() - .5) * 80; y += 18 + Math.random() * 48; g.lineTo(x, y); }
+    g.stroke();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function groundDecalTexture(kind, seed = 0) {
+  const c = makeCanvas(512, 512);
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, 512, 512);
+  if (kind === 'oil') {
+    for (let i = 0; i < 28; i++) {
+      const x = 180 + Math.random() * 150, y = 250 + Math.random() * 90, r = 14 + Math.random() * 80;
+      const grd = g.createRadialGradient(x, y, 0, x, y, r);
+      grd.addColorStop(0, 'rgba(3,8,9,.46)'); grd.addColorStop(1, 'rgba(3,8,9,0)');
+      g.fillStyle = grd; g.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+  } else if (kind === 'crack') {
+    g.strokeStyle = 'rgba(8,11,11,.58)'; g.lineWidth = 2;
+    for (let i = 0; i < 14; i++) {
+      g.beginPath(); let x = 180 + Math.random() * 150, y = 20; g.moveTo(x, y);
+      for (let j = 0; j < 9; j++) { x += (Math.random() - .5) * 42; y += 35 + Math.random() * 25; g.lineTo(x, y); }
+      g.stroke();
+    }
+  } else if (kind === 'tire') {
+    g.lineCap = 'round';
+    for (const [x,w,a] of [[150,26,.15],[350,24,-.08]]) {
+      g.strokeStyle = `rgba(5,8,8,${a})`; g.lineWidth = w; g.beginPath(); g.moveTo(x, 20); g.bezierCurveTo(x + 18, 160, x - 12, 340, x + 15, 495); g.stroke();
+    }
+  } else {
+    for (let i = 0; i < 55; i++) {
+      g.save(); g.translate(Math.random() * 512, Math.random() * 512); g.rotate(Math.random() * Math.PI);
+      g.fillStyle = `rgba(${120 + Math.random() * 80},${110 + Math.random() * 70},${85 + Math.random() * 50},${.12 + Math.random() * .2})`;
+      g.fillRect(-5 - Math.random() * 14, -2 - Math.random() * 5, 10 + Math.random() * 35, 3 + Math.random() * 10);
+      g.restore();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function addGroundDecal(scene, texture, x, z, w, d, opacity = .45, rotation = 0) {
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, toneMapped: false })
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = rotation;
+  mesh.position.set(x, .021, z);
+  mesh.renderOrder = 2;
+  scene.add(mesh);
+  return mesh;
+}
+
 function boxMesh(w, h, d, mat, x = 0, y = 0, z = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
   m.position.set(x, y, z);
@@ -165,6 +257,7 @@ function addCollider(colliders, x, z, w, d, pad = 0, height = 3) {
 
 function createBuilding(scene, colliders, x, z, w, d, h, side, random, facadeTex) {
   const group = new THREE.Group();
+  const seedForShop = Math.floor(random() * 4);
   const facadeX = side < 0 ? w / 2 + .045 : -w / 2 - .045;
   const facadeRotY = side < 0 ? Math.PI / 2 : -Math.PI / 2;
   const concrete = new THREE.MeshStandardMaterial({
@@ -243,11 +336,13 @@ function createBuilding(scene, colliders, x, z, w, d, h, side, random, facadeTex
 
   const shop = new THREE.Mesh(
     new THREE.PlaneGeometry(d * .72, 1.95),
-    new THREE.MeshPhysicalMaterial({ color: 0x0b171a, metalness: .5, roughness: .14, transparent: true, opacity: .82, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ map: storefrontTexture(seedForShop), transparent: true, opacity: .92, side: THREE.DoubleSide, toneMapped: true })
   );
   shop.position.set(facadeX + (side < 0 ? .075 : -.075), 1.12, -d * .06);
   shop.rotation.y = facadeRotY;
   group.add(shop);
+  const shopGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0xe69a49, transparent: true, opacity: .12, blending: THREE.AdditiveBlending, depthWrite: false }));
+  shopGlow.scale.set(6.2, 2.3, 1); shopGlow.position.copy(shop.position); shopGlow.position.y += .1; group.add(shopGlow);
   const awning = boxMesh(.95, .12, d * .5, random() > .5 ? trimMat : new THREE.MeshStandardMaterial({ color: 0x5b3527, roughness: .55 }), facadeX + (side < 0 ? .48 : -.48), 2.25, -d * .08);
   awning.rotation.z = side * .045;
   group.add(awning);
@@ -332,6 +427,71 @@ function createCar(scene, colliders, x, z, rotY, flipped = false) {
   if (flipped) { group.rotation.z = 1.25; group.position.y = 1.1; }
   scene.add(group);
   addCollider(colliders, x, z, 2.5, 4.5, .15, 1.75);
+}
+
+function createCone(scene, x, z) {
+  const g = new THREE.Group();
+  const orange = new THREE.MeshStandardMaterial({ color: 0xc95b25, roughness: .62 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xd8d4c7, roughness: .55 });
+  const base = boxMesh(.42, .055, .42, new THREE.MeshStandardMaterial({ color: 0x171b1b, roughness: .85 }), 0, .03, 0); g.add(base);
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(.16, .52, 12), orange); cone.position.y = .3; g.add(cone);
+  const stripe = new THREE.Mesh(new THREE.CylinderGeometry(.105, .13, .09, 12), white); stripe.position.y = .34; g.add(stripe);
+  g.position.set(x, 0, z); scene.add(g);
+}
+
+function createBarricade(scene, colliders, x, z, rotation = 0) {
+  const g = new THREE.Group();
+  const orange = new THREE.MeshStandardMaterial({ color: 0xc9692e, roughness: .62 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xd8d2c4, roughness: .5 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1b2020, roughness: .7, metalness: .2 });
+  g.add(boxMesh(2.6, .38, .12, white, 0, .82, 0));
+  for (let i = 0; i < 5; i++) { const stripe = boxMesh(.32, .39, .13, orange, -.95 + i * .48, .82, 0); stripe.rotation.z = -.5; g.add(stripe); }
+  g.add(boxMesh(.12, .9, .12, dark, -.94, .43, 0)); g.add(boxMesh(.12, .9, .12, dark, .94, .43, 0));
+  g.add(boxMesh(.9, .08, .55, dark, -.94, .05, .1)); g.add(boxMesh(.9, .08, .55, dark, .94, .05, .1));
+  g.position.set(x, 0, z); g.rotation.y = rotation; scene.add(g); addCollider(colliders, x, z, 2.7, .7, .05, 1.05);
+}
+
+function createBin(scene, colliders, x, z) {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x2d3636, roughness: .55, metalness: .6 });
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(.36, .32, .92, 14), metal); body.position.y = .48; g.add(body);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(.4, .38, .1, 14), metal); lid.position.y = .98; g.add(lid);
+  g.position.set(x, 0, z); g.rotation.z = .06; scene.add(g); addCollider(colliders, x, z, .8, .8, .02, 1.1);
+}
+
+function createBus(scene, colliders, x, z, rotation = 0) {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshPhysicalMaterial({ color: 0x6c6a5d, roughness: .5, metalness: .32, clearcoat: .5 });
+  const glass = new THREE.MeshPhysicalMaterial({ color: 0x071012, metalness: .65, roughness: .12, transmission: .08 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x0a0d0d, roughness: .85 });
+  g.add(boxMesh(2.7, 2.1, 9.6, paint, 0, 1.3, 0));
+  g.add(boxMesh(2.5, .15, 9.1, paint, 0, 2.45, 0));
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 7; i++) g.add(boxMesh(.04, 1.05, 1.0, glass, side * 1.36, 1.62, -3.7 + i * 1.22));
+    for (const zz of [-3.1, 3.1]) { const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.55, .55, .25, 14), dark); wheel.rotation.z = Math.PI / 2; wheel.position.set(side * 1.39, .55, zz); g.add(wheel); }
+  }
+  g.add(boxMesh(2.4, 1.15, .06, glass, 0, 1.7, -4.82));
+  for (const side of [-.7, .7]) g.add(boxMesh(.36, .18, .06, new THREE.MeshBasicMaterial({ color: 0xffc36a }), side, .68, -4.86));
+  g.position.set(x, 0, z); g.rotation.y = rotation; g.rotation.z = -.035; scene.add(g);
+  addCollider(colliders, x, z, 3.1, 9.8, .2, 2.7);
+}
+
+function createFireEscape(scene, x, z, side) {
+  const g = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x171d1e, metalness: .72, roughness: .4 });
+  const faceX = x + side * .48;
+  for (let level = 0; level < 3; level++) {
+    const y = 4.2 + level * 3.1;
+    g.add(boxMesh(1.0, .09, 2.5, metal, faceX, y, z));
+    g.add(boxMesh(1.0, .06, .08, metal, faceX, y + .78, z - 1.2));
+    g.add(boxMesh(1.0, .06, .08, metal, faceX, y + .78, z + 1.2));
+    for (let i = 0; i < 6; i++) g.add(boxMesh(.055, .72, .055, metal, faceX + .42, y + .4, z - 1.0 + i * .4));
+  }
+  for (let level = 0; level < 2; level++) {
+    const y = 4.2 + level * 3.1;
+    for (const dz of [-1.02, 1.02]) g.add(boxMesh(.06, 2.6, .06, metal, faceX + .35, y + 1.35, z + dz));
+  }
+  scene.add(g);
 }
 
 function createLamp(scene, x, z, side, sceneLights, colliders, useLight = false) {
@@ -557,6 +717,15 @@ export function createCityWorld(scene, renderer) {
     scene.add(p); puddles.push(p);
   }
 
+  const decalTextures = {
+    oil: groundDecalTexture('oil'), crack: groundDecalTexture('crack'),
+    tire: groundDecalTexture('tire'), paper: groundDecalTexture('paper')
+  };
+  for (let i = 0; i < 30; i++) {
+    const type = ['oil', 'crack', 'tire', 'paper'][i % 4];
+    addGroundDecal(scene, decalTextures[type], (Math.random() - .5) * 27, 30 - Math.random() * 76, 2.2 + Math.random() * 4.5, 2.2 + Math.random() * 5.5, type === 'paper' ? .25 : .42, Math.random() * Math.PI);
+  }
+
   const facadeTextures = [0, 1, 2, 3].map(facadeTexture);
   const rng = (() => { let s = 4127; return () => ((s = s * 16807 % 2147483647) / 2147483647); })();
   const buildingZ = [30, 17, 3, -12, -31, -47];
@@ -623,6 +792,15 @@ export function createCityWorld(scene, renderer) {
   createCar(scene, colliders, 7.2, 9.5, -.16, true);
   createCar(scene, colliders, -1.2, -4, .04);
   createCar(scene, colliders, 8.2, -32, .7);
+  createBus(scene, colliders, -11.8, -35.5, .38);
+  createBarricade(scene, colliders, -5.2, 16.2, .08);
+  createBarricade(scene, colliders, 8.8, -4.2, -.22);
+  createBarricade(scene, colliders, -6.4, -15.8, .55);
+  [[-2.2, 20.2], [5.7, 4.2], [-4.6, -8.2], [8.8, -15.7], [-8.2, -31.5], [1.8, -41.2], [11.4, -24.6]].forEach(([x, z]) => createCone(scene, x, z));
+  [[-12.6, 21.5], [12.4, 1.2], [-12.8, -14.8], [12.5, -35.5]].forEach(([x, z]) => createBin(scene, colliders, x, z));
+  createFireEscape(scene, -19.7, 3, 1);
+  createFireEscape(scene, 20.2, -31, -1);
+  createFireEscape(scene, -20.1, 19.5, 1);
 
   const rubbleSpecs = [
     [-11.5, 17, 3.1, .72], [-9.2, 7, 2.4, .68], [11.3, 19, 2.8, .66],

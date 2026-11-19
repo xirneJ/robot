@@ -8,6 +8,8 @@ import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
 import { ssr } from 'three/addons/tsl/display/SSRNode.js';
 import { motionBlur } from 'three/addons/tsl/display/MotionBlur.js';
+import { smaa } from 'three/addons/tsl/display/SMAANode.js';
+import { film } from 'three/addons/tsl/display/FilmNode.js';
 
 const grade = (inputColor) => {
   const col = inputColor.rgb;
@@ -71,7 +73,10 @@ export function createPostPipeline(renderer, scene, camera) {
     }
     final = final.add(bloom(final, .58, .52, .82));
     final = motionBlur(convertToTexture(final), velocityTexture, 10);
-    pipeline.outputNode = grade(final);
+    final = grade(final);
+    final = film(final, float(.045));
+    final = smaa(final);
+    pipeline.outputNode = final;
   }
   pipeline.outputColorTransform = true;
 

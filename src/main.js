@@ -64,6 +64,7 @@ let lastZoneNotified = null;
 let lastEvidenceConfirmed = false;
 let debugControls = null;
 let ready = false;
+let lastAutoPhase = 'idle';
 
 locomotion.reset();
 locomotion.onFootstep = (_index, strength) => {
@@ -99,6 +100,7 @@ function resetRound() {
   mission.reset();
   locomotion.reset();
   autopilot.reset();
+  lastAutoPhase = 'idle';
   radar.toggle(false);
   hud.setRadar(false);
   hud.setAuto(false, autopilot.state);
@@ -273,6 +275,11 @@ function animate(now) {
       chase.update(dt, locomotion.state.speed);
       updateHUD(elapsed, missionState);
       hud.setAuto(autopilot.state.enabled, autopilot.state);
+      if (autopilot.state.phase === 'awaiting-confirm' && lastAutoPhase !== 'awaiting-confirm') {
+        hud.toast('自动寻人发现疑似人员 · 请人工确认', 3200);
+        audio.radio();
+      }
+      lastAutoPhase = autopilot.state.phase;
       if (radar.visible) radar.update(elapsed);
       handleComplete(missionState);
       world.update(dt, elapsed, robot.root.position, locomotion.state.speed, mission.state.scanning);
