@@ -1,0 +1,5 @@
+dist/
+.playwright-mcp/
+*.log
+node_modules/
+

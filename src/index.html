@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#070a0b">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23070a0b'/%3E%3Cpath d='M14 45 24 20l8 17 8-17 10 25' fill='none' stroke='%23f5ad51' stroke-width='4'/%3E%3C/svg%3E">
+  <title>ISR 蛛行 · 城市搜救模拟器</title>
+</head>
+<body>
+  <main id="app">
+    <canvas id="view" tabindex="0" aria-label="ISR 蛛行三维模拟场景"></canvas>
+    <div class="screen-vignette" aria-hidden="true"></div>
+    <div class="screen-noise" aria-hidden="true"></div>
+
+    <section id="boot" class="boot" aria-labelledby="boot-title">
+      <div class="boot-rule top"><span>ISR / URBAN SEARCH &amp; RESCUE</span><span>SIMULATION BUILD 01.07</span></div>
+      <div class="boot-main">
+        <div class="boot-index"><span>ISR</span><i></i><b>7</b></div>
+        <div class="boot-heading">
+          <p class="kicker">六足智能搜救机器人 · 城市震后辅助侦察平台</p>
+          <h1 id="boot-title">蛛行</h1>
+          <div class="boot-subline"><span>SPIDER-6</span><i></i><span>18 DOF / TRI-GAIT</span></div>
+        </div>
+        <div class="boot-brief">
+          <div class="brief-label">任务预置 / MISSION 07</div>
+          <p>暴雨导致临川市 7 号街区多处建筑坍塌。进入受灾区域，确认三处疑似生命信号，并将现场数据上传指挥中心。</p>
+          <dl>
+            <div><dt>环境</dt><dd>城市街区 · 暴雨</dd></div>
+            <div><dt>时间</dt><dd>02:47 / 夜间</dd></div>
+            <div><dt>模式</dt><dd>远程驾驶 · 辅助侦察</dd></div>
+          </dl>
+        </div>
+      </div>
+      <div class="boot-controls">
+        <div class="loading-line"><i id="boot-progress"></i></div>
+        <div class="boot-load-row"><span id="boot-status">正在建立虚拟救援链路</span><b id="boot-pct">0%</b></div>
+        <button id="start-btn" class="primary-action" type="button" disabled>
+          <span>接入 ISR 控制链路</span><b>ENTER</b>
+        </button>
+      </div>
+      <div class="boot-rule bottom"><span>成都工业学院 · 计算机工程学院</span><span>仅用于仿真演示，不代表实体救援性能</span></div>
+    </section>
+
+    <div id="hud" class="hud" aria-live="polite">
+      <header class="hud-top">
+        <div class="mission-block panel-edge">
+          <div class="hud-label"><span>任务 07</span><b>LIVE SIM</b></div>
+          <h2 id="mission-title">确认三处生命信号</h2>
+          <p id="mission-detail">使用传感器扫描受灾区域</p>
+          <div class="mission-progress"><i id="mission-progress"></i></div>
+          <div class="mission-row"><span id="mission-count">0 / 3</span><span id="mission-mode">移动探测</span></div>
+        </div>
+
+        <div class="compass-wrap">
+          <div class="compass-read"><b id="compass-cardinal">北</b><span id="compass-bearing">000</span></div>
+          <div class="compass-tape"><div id="compass-track" class="compass-track"></div><i class="compass-notch"></i></div>
+          <div class="compass-coords"><span>7 号街区</span><span>31.22 N / 104.18 E</span></div>
+        </div>
+
+        <div class="status-block panel-edge">
+          <div class="hud-label"><span>ISR-06</span><b id="link-state">链路在线</b></div>
+          <div class="status-mode"><i id="mode-led"></i><span id="mode-label">驻停</span></div>
+          <p id="mode-detail">六足稳定 · 高精度传感</p>
+          <div class="status-actions">
+            <button id="mute-btn" type="button" aria-label="切换声音">声音 开</button>
+            <button id="help-btn" type="button" aria-label="显示操作说明">操作 H</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="reticle" aria-hidden="true">
+        <i class="r-corner tl"></i><i class="r-corner tr"></i><i class="r-corner bl"></i><i class="r-corner br"></i>
+        <span class="reticle-dot"></span>
+        <span class="reticle-text">SENSOR ARRAY</span>
+      </div>
+
+      <div id="target-marker" class="target-marker" hidden>
+        <i></i><b id="target-label">目标 A</b><span id="target-distance">0 m</span>
+      </div>
+
+      <section class="telemetry panel-edge">
+        <div class="panel-heading"><span>MOTION / 运动</span><b id="gait-mode">三角步态</b></div>
+        <div class="speed-row"><b id="speed-value">0.0</b><span>m/s</span><div class="speed-bar"><i id="speed-bar"></i></div></div>
+        <div class="telemetry-grid">
+          <div class="attitude">
+            <div class="attitude-label"><span>ATTITUDE</span><b>姿态</b></div>
+            <div class="attitude-dial"><i id="attitude-roll"></i><i id="attitude-pitch"></i><span></span></div>
+          </div>
+          <div class="joint-summary"><span>18 DOF</span><b>关节联动</b><i></i><small id="joint-state">六足着地</small></div>
+          <div class="power-summary"><span>PWR</span><b>78%</b><i><em></em></i><small>24.7 V</small></div>
+        </div>
+        <div class="fsr-block">
+          <div class="fsr-title"><span>FSR 足端压力</span><b id="fsr-state">6 / 6 支撑</b></div>
+          <div id="fsr-bars" class="fsr-bars">
+            <i><em></em></i><i><em></em></i><i><em></em></i><i><em></em></i><i><em></em></i><i><em></em></i>
+          </div>
+        </div>
+      </section>
+
+      <section class="sensor-panel panel-edge">
+        <div class="panel-heading"><span>SENSOR SUITE / 感知</span><b id="sensor-mode">移动降权</b></div>
+        <div id="sensor-grid" class="sensor-grid"></div>
+      </section>
+
+      <section id="scan-panel" class="scan-panel panel-edge">
+        <div class="scan-heading"><span id="scan-title">区域扫描</span><b id="scan-state">待机</b></div>
+        <div class="scan-meter"><i id="scan-progress"></i></div>
+        <div class="scan-meta"><span id="scan-copy">进入信号区后按住 R 扫描</span><span id="scan-pct">0%</span></div>
+      </section>
+
+      <div class="bottom-prompt"><span>WASD 驾驶</span><span>SHIFT 加速</span><span>G 切换步态</span><span>R 扫描</span><span>E 确认上传</span><span>H 帮助</span></div>
+
+      <aside id="evidence-card" class="evidence-card" hidden>
+        <div class="evidence-head"><span>证据融合 / EVIDENCE</span><b id="evidence-id">A</b></div>
+        <h3>疑似生命信号</h3>
+        <p id="evidence-location">商铺夹道</p>
+        <div class="confidence"><span>置信度</span><b id="confidence-value">0%</b><i><em id="confidence-bar"></em></i></div>
+        <div class="evidence-channels">
+          <div><span>热像</span><i><em id="ev-heat"></em></i><b id="ev-heat-value">0%</b></div>
+          <div><span>人体存在</span><i><em id="ev-presence"></em></i><b id="ev-presence-value">0%</b></div>
+          <div><span>声音</span><i><em id="ev-audio"></em></i><b id="ev-audio-value">0%</b></div>
+        </div>
+        <div class="evidence-foot"><span>三项中两项命中</span><b>E 确认并上传</b></div>
+      </aside>
+
+      <div id="toast" class="toast"></div>
+
+      <aside id="help-panel" class="help-panel" hidden>
+        <div class="help-head"><span>CONTROL / 操作手册</span><button id="help-close" type="button">关闭</button></div>
+        <div class="help-grid">
+          <div><kbd>W</kbd><kbd>S</kbd><span>前进 / 后退</span></div>
+          <div><kbd>A</kbd><kbd>D</kbd><span>差动转向</span></div>
+          <div><kbd>SHIFT</kbd><span>加速行进</span></div>
+          <div><kbd>SPACE</kbd><span>紧急驻停</span></div>
+          <div><kbd>G</kbd><span>三角 / 波动步态</span></div>
+          <div><kbd>R</kbd><span>按住扫描</span></div>
+          <div><kbd>E</kbd><span>确认并上传</span></div>
+          <div><kbd>鼠标</kbd><span>环绕镜头 / 观察</span></div>
+          <div><kbd>滚轮</kbd><span>镜头距离</span></div>
+          <div><kbd>M</kbd><span>声音开关</span></div>
+        </div>
+        <p>驻停后热像、毫米波与声音通道解除降权。移动中仍可扫描，但进度显著变慢。</p>
+      </aside>
+
+      <div id="pause-chip" class="pause-chip" hidden>镜头已释放 · 点击画面重新锁定</div>
+
+      <section id="complete-panel" class="complete-panel" hidden>
+        <div class="complete-rule"><span>MISSION 07 COMPLETE</span><span>DATA UPLINK VERIFIED</span></div>
+        <p>三处疑似生命信号已完成确认</p>
+        <h2>搜救演练结束</h2>
+        <div class="complete-stats">
+          <div><b id="final-targets">3</b><span>目标确认</span></div>
+          <div><b id="final-distance">0</b><span>行驶距离 m</span></div>
+          <div><b id="final-time">00:00</b><span>任务用时</span></div>
+        </div>
+        <button id="restart-btn" class="primary-action" type="button"><span>重新进入街区</span><b>RESTART</b></button>
+      </section>
+    </div>
+  </main>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
